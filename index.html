@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quantum Tic-Tac-Toe</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: radial-gradient(ellipse at 50% 30%, #10142a 0%, #05060f 60%, #000000 100%);
+    overflow: hidden;
+    font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+    color: #e8ecff;
+  }
+  #canvas-container { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  .panel {
+    position: fixed;
+    background: rgba(10, 14, 30, 0.62);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(120, 170, 255, 0.18);
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  }
+
+  #title-bar {
+    top: 20px; left: 50%; transform: translateX(-50%);
+    padding: 10px 28px;
+    text-align: center;
+  }
+  #title-bar h1 {
+    font-size: 20px; font-weight: 600; letter-spacing: 1.5px;
+    background: linear-gradient(90deg, #5ad1ff, #b98bff, #ff6fc9);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  #title-bar p { font-size: 11px; color: #8fa0d0; margin-top: 2px; letter-spacing: 0.5px; }
+
+  #turn-panel {
+    top: 90px; left: 20px; width: 230px; padding: 16px;
+  }
+  #turn-panel .label { font-size: 11px; color: #8fa0d0; text-transform: uppercase; letter-spacing: 1px; }
+  #turn-indicator {
+    display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 22px; font-weight: 700;
+  }
+  .chip { width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 12px currentColor; }
+  .chip.X { background: #4fd8ff; color: #4fd8ff; }
+  .chip.O { background: #ff5cc0; color: #ff5cc0; }
+  #progress-text { font-size: 12px; color: #7c8bb5; margin-top: 8px; }
+
+  #mode-panel { top: 260px; left: 20px; width: 230px; padding: 16px; }
+  #mode-panel .label { font-size: 11px; color: #8fa0d0; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .mode-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 10px 12px; margin-bottom: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(140,170,255,0.18);
+    border-radius: 9px; color: #dfe6ff; font-size: 13px; cursor: pointer;
+    transition: all 0.15s ease; text-align: left;
+  }
+  .mode-btn:hover { background: rgba(120,170,255,0.14); border-color: rgba(140,170,255,0.4); }
+  .mode-btn.active { background: rgba(90,160,255,0.22); border-color: #6fb4ff; box-shadow: 0 0 14px rgba(90,160,255,0.35); }
+  .mode-btn .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .mode-btn .txt small { display: block; color: #8fa0d0; font-size: 10.5px; margin-top: 1px; }
+  .mode-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  #collapse-btn {
+    background: rgba(255,90,90,0.12); border-color: rgba(255,120,120,0.35);
+  }
+  #collapse-btn:hover { background: rgba(255,90,90,0.22); }
+
+  #hint-text { font-size: 11.5px; color: #93a3d4; margin-top: 4px; min-height: 32px; line-height: 1.5; }
+
+  #log-panel {
+    top: 90px; right: 20px; width: 260px; height: 300px; padding: 14px;
+    display: flex; flex-direction: column;
+  }
+  #log-panel .label { font-size: 11px; color: #8fa0d0; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  #log-list { overflow-y: auto; flex: 1; font-size: 12px; line-height: 1.6; color: #c3cdef; }
+  #log-list div { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  #log-list::-webkit-scrollbar { width: 5px; }
+  #log-list::-webkit-scrollbar-thumb { background: rgba(140,170,255,0.3); border-radius: 3px; }
+
+  #legend-panel { bottom: 20px; right: 20px; width: 260px; padding: 14px; font-size: 11.5px; color: #93a3d4; line-height: 1.7; }
+  #legend-panel .label { font-size: 11px; color: #8fa0d0; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+
+  #restart-btn {
+    bottom: 20px; left: 20px; padding: 10px 18px; font-size: 12px; color: #dfe6ff;
+    cursor: pointer; border: 1px solid rgba(140,170,255,0.25); background: rgba(255,255,255,0.04);
+  }
+  #restart-btn:hover { background: rgba(120,170,255,0.14); }
+
+  #overlay-message {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.55); z-index: 20;
+  }
+  #overlay-message .box {
+    background: rgba(12,16,34,0.9); border: 1px solid rgba(140,170,255,0.3);
+    border-radius: 18px; padding: 40px 60px; text-align: center;
+    box-shadow: 0 0 60px rgba(90,160,255,0.25);
+  }
+  #overlay-message h2 {
+    font-size: 32px; font-weight: 700; margin-bottom: 10px;
+    background: linear-gradient(90deg, #5ad1ff, #b98bff, #ff6fc9);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  #overlay-message p { font-size: 13px; color: #a6b3de; margin-bottom: 20px; }
+  #overlay-message button {
+    padding: 10px 24px; border-radius: 9px; border: 1px solid rgba(140,170,255,0.4);
+    background: rgba(90,160,255,0.18); color: #dfe6ff; font-size: 13px; cursor: pointer;
+  }
+  #overlay-message button:hover { background: rgba(90,160,255,0.3); }
+
+  #square-labels { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  .sq-label {
+    position: absolute; transform: translate(-50%, -50%);
+    font-size: 11px; color: rgba(200, 215, 255, 0.55); pointer-events: none;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<div id="square-labels"></div>
+
+<div id="title-bar" class="panel">
+  <h1>QUANTUM TIC-TAC-TOE</h1>
+  <p>each square is a qubit &middot; nothing is real until measured</p>
+</div>
+
+<div id="turn-panel" class="panel">
+  <div class="label">Current turn</div>
+  <div id="turn-indicator"><span class="chip X" id="turn-chip"></span><span id="turn-name">X</span></div>
+  <div id="progress-text">0 / 9 squares touched</div>
+</div>
+
+<div id="mode-panel" class="panel">
+  <div class="label">Choose a move</div>
+  <button class="mode-btn active" data-mode="mark" id="btn-mark">
+    <span class="dot" style="background:#4fd8ff"></span>
+    <span class="txt">Mark<small>X gate &middot; certain, ends up marked</small></span>
+  </button>
+  <button class="mode-btn" data-mode="superpose" id="btn-superpose">
+    <span class="dot" style="background:#b98bff"></span>
+    <span class="txt">Superpose<small>H gate &middot; 50/50 chance of marked</small></span>
+  </button>
+  <button class="mode-btn" data-mode="entangle" id="btn-entangle">
+    <span class="dot" style="background:#ff9d4f"></span>
+    <span class="txt">Entangle<small>CX gate &middot; link two squares' fates</small></span>
+  </button>
+  <button class="mode-btn" id="collapse-btn">
+    <span class="dot" style="background:#ff5a5a"></span>
+    <span class="txt">Collapse now<small>force measurement, end the game</small></span>
+  </button>
+  <div id="hint-text">Click an empty square to mark it.</div>
+</div>
+
+<div id="log-panel" class="panel">
+  <div class="label">Move log</div>
+  <div id="log-list"></div>
+</div>
+
+<div id="legend-panel" class="panel">
+  <div class="label">Reading the board</div>
+  <div>Solid glow = marked (certain)</div>
+  <div>Pulsing haze = superposed (uncertain)</div>
+  <div>Beam between squares = entangled</div>
+  <div>Dim = untouched / empty</div>
+</div>
+
+<button id="restart-btn" class="panel">↻ New game</button>
+
+<div id="overlay-message">
+  <div class="box">
+    <h2 id="overlay-title">X wins</h2>
+    <p id="overlay-sub">the board has collapsed</p>
+    <button id="overlay-restart">Play again</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ============================================================
+     QUANTUM ENGINE
+     9 qubits -> a 512-dimensional complex statevector.
+     H = superposition, X = deterministic flip, CX = entanglement.
+     ============================================================ */
+  const NQ = 9, DIM = 1 << NQ;
+
+  function initState() {
+    const re = new Float64Array(DIM), im = new Float64Array(DIM);
+    re[0] = 1;
+    return { re, im };
+  }
+  function applyH(state, q) {
+    const { re, im } = state, bit = 1 << q, s = Math.SQRT1_2;
+    for (let i = 0; i < DIM; i++) {
+      if ((i & bit) === 0) {
+        const j = i | bit;
+        const r0 = re[i], m0 = im[i], r1 = re[j], m1 = im[j];
+        re[i] = s * (r0 + r1); im[i] = s * (m0 + m1);
+        re[j] = s * (r0 - r1); im[j] = s * (m0 - m1);
+      }
+    }
+  }
+  function applyX(state, q) {
+    const { re, im } = state, bit = 1 << q;
+    for (let i = 0; i < DIM; i++) {
+      if ((i & bit) === 0) {
+        const j = i | bit;
+        const tr = re[i], ti = im[i];
+        re[i] = re[j]; im[i] = im[j]; re[j] = tr; im[j] = ti;
+      }
+    }
+  }
+  function applyCX(state, c, t) {
+    const { re, im } = state, cbit = 1 << c, tbit = 1 << t;
+    for (let i = 0; i < DIM; i++) {
+      if ((i & cbit) !== 0 && (i & tbit) === 0) {
+        const j = i | tbit;
+        const tr = re[i], ti = im[i];
+        re[i] = re[j]; im[i] = im[j]; re[j] = tr; im[j] = ti;
+      }
+    }
+  }
+  function marginalProb1(state, q) {
+    const { re, im } = state, bit = 1 << q;
+    let p = 0;
+    for (let i = 0; i < DIM; i++) if (i & bit) p += re[i] * re[i] + im[i] * im[i];
+    return p;
+  }
+  function sampleFullState(state) {
+    const { re, im } = state;
+    const r = Math.random();
+    let acc = 0;
+    for (let i = 0; i < DIM; i++) {
+      acc += re[i] * re[i] + im[i] * im[i];
+      if (r <= acc) return i;
+    }
+    return DIM - 1;
+  }
+
+  /* ============================================================
+     GAME STATE
+     ============================================================ */
+  const WIN_LINES = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  let game;
+  function newGame() {
+    game = {
+      state: initState(),
+      claimant: new Array(9).fill(null),
+      touched: new Array(9).fill(false),
+      currentPlayer: 'X',
+      movesMade: 0,
+      mode: 'mark',
+      entangleControl: null,
+      over: false,
+      result: null,
+      collapsedBits: null,
+      winners: []
+    };
+  }
+  newGame();
+
+  function otherPlayer(p) { return p === 'X' ? 'O' : 'X'; }
+
+  function logMove(text) {
+    const el = document.getElementById('log-list');
+    const line = document.createElement('div');
+    line.textContent = text;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function doMark(square) {
+    applyX(game.state, square);
+    game.claimant[square] = game.currentPlayer;
+    game.touched[square] = true;
+    logMove(`${game.currentPlayer} marks square ${square}`);
+    advanceTurn(square);
+  }
+  function doSuperpose(square) {
+    applyH(game.state, square);
+    game.claimant[square] = game.currentPlayer;
+    game.touched[square] = true;
+    logMove(`${game.currentPlayer} superposes square ${square} (50/50)`);
+    advanceTurn(square);
+  }
+  function doEntangle(control, target) {
+    applyCX(game.state, control, target);
+    game.claimant[target] = game.currentPlayer;
+    game.touched[target] = true;
+    logMove(`${game.currentPlayer} entangles square ${target} with square ${control}`);
+    advanceTurn(target);
+  }
+
+  function advanceTurn(touchedSquare) {
+    game.currentPlayer = otherPlayer(game.currentPlayer);
+    game.movesMade++;
+    updateTurnUI();
+    animateTouch(touchedSquare);
+    if (game.movesMade >= 9) collapseBoard();
+  }
+
+  function collapseBoard() {
+    const idx = sampleFullState(game.state);
+    const bits = [];
+    for (let i = 0; i < 9; i++) bits.push((idx >> i) & 1);
+    game.collapsedBits = bits;
+    game.result = bits.map((b, i) => b === 1 ? game.claimant[i] : null);
+    game.over = true;
+
+    const found = new Set();
+    for (const [a,b,c] of WIN_LINES) {
+      if (game.result[a] && game.result[a] === game.result[b] && game.result[b] === game.result[c]) {
+        found.add(game.result[a]);
+      }
+    }
+    game.winners = Array.from(found);
+    logMove('--- board collapses ---');
+    game.result.forEach((r, i) => {
+      if (r) logMove(`square ${i} -> ${r}`);
+    });
+    runCollapseAnimation();
+  }
+
+  /* ============================================================
+     THREE.JS SCENE
+     ============================================================ */
+  const container = document.getElementById('canvas-container');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+  let camDist = 9, camTheta = 0.15, camPhi = 1.15;
+  function updateCameraPosition() {
+    camera.position.set(
+      camDist * Math.sin(camPhi) * Math.sin(camTheta),
+      camDist * Math.cos(camPhi),
+      camDist * Math.sin(camPhi) * Math.cos(camTheta)
+    );
+    camera.lookAt(0, 0, 0);
+  }
+  updateCameraPosition();
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  container.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0x8899ff, 0.5));
+  const keyLight = new THREE.PointLight(0xffffff, 0.8);
+  keyLight.position.set(5, 8, 6);
+  scene.add(keyLight);
+
+  /* Starfield background */
+  (function buildStarfield() {
+    const starCount = 1400;
+    const positions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const r = 30 + Math.random() * 40;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      positions[i*3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i*3+2] = r * Math.cos(phi);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({ color: 0x9fb4ff, size: 0.12, transparent: true, opacity: 0.75 });
+    scene.add(new THREE.Points(geo, mat));
+  })();
+
+  /* Glow sprite texture, generated once */
+  function makeGlowTexture() {
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    return new THREE.CanvasTexture(canvas);
+  }
+  const glowTexture = makeGlowTexture();
+
+  /* Grid lines (tic-tac-toe frame) */
+  const SPACING = 2.4;
+  (function buildGridLines() {
+    const mat = new THREE.LineBasicMaterial({ color: 0x4a5a99, transparent: true, opacity: 0.4 });
+    const pts = [];
+    for (const off of [-0.5, 0.5]) {
+      pts.push(-1.5*SPACING, off*SPACING, 0,  1.5*SPACING, off*SPACING, 0);
+      pts.push(off*SPACING, -1.5*SPACING, 0,  off*SPACING, 1.5*SPACING, 0);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    scene.add(new THREE.LineSegments(geo, mat));
+  })();
+
+  const COLOR_X = new THREE.Color(0x4fd8ff);
+  const COLOR_O = new THREE.Color(0xff5cc0);
+  const COLOR_EMPTY = new THREE.Color(0x334066);
+  const COLOR_SUPER = new THREE.Color(0xb98bff);
+
+  function squarePosition(i) {
+    const col = i % 3, row = Math.floor(i / 3);
+    return new THREE.Vector3((col - 1) * SPACING, (1 - row) * SPACING, 0);
+  }
+
+  const squares = [];
+  for (let i = 0; i < 9; i++) {
+    const group = new THREE.Group();
+    const pos = squarePosition(i);
+    group.position.copy(pos);
+
+    const coreGeo = new THREE.IcosahedronGeometry(0.32, 1);
+    const coreMat = new THREE.MeshStandardMaterial({
+      color: COLOR_EMPTY, emissive: COLOR_EMPTY, emissiveIntensity: 0.6,
+      roughness: 0.35, metalness: 0.2, transparent: true, opacity: 0.85
+    });
+    const core = new THREE.Mesh(coreGeo, coreMat);
+    group.add(core);
+
+    const wireGeo = new THREE.IcosahedronGeometry(0.46, 1);
+    const wireMat = new THREE.MeshBasicMaterial({ color: COLOR_SUPER, wireframe: true, transparent: true, opacity: 0 });
+    const wire = new THREE.Mesh(wireGeo, wireMat);
+    group.add(wire);
+
+    const spriteMat = new THREE.SpriteMaterial({ map: glowTexture, color: COLOR_EMPTY, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.scale.set(1.3, 1.3, 1.3);
+    group.add(sprite);
+
+    group.userData = { index: i };
+    scene.add(group);
+    squares.push({ group, core, coreMat, wire, wireMat, sprite, spriteMat, baseScale: 1, flashT: 0 });
+  }
+
+  /* Entanglement beams: array of { control, target, line, particle, born } */
+  const beams = [];
+  function addBeam(control, target) {
+    const p0 = squarePosition(control), p1 = squarePosition(target);
+    const mid = p0.clone().add(p1).multiplyScalar(0.5);
+    mid.z += 0.9;
+    const curve = new THREE.QuadraticBezierCurve3(p0, mid, p1);
+    const points = curve.getPoints(40);
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    const mat = new THREE.LineBasicMaterial({ color: 0xff9d4f, transparent: true, opacity: 0.75 });
+    const line = new THREE.Line(geo, mat);
+    scene.add(line);
+
+    const partMat = new THREE.SpriteMaterial({ map: glowTexture, color: 0xffce9d, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+    const particle = new THREE.Sprite(partMat);
+    particle.scale.set(0.35, 0.35, 0.35);
+    scene.add(particle);
+
+    beams.push({ curve, line, particle, born: performance.now() });
+  }
+  function clearBeams() {
+    for (const b of beams) { scene.remove(b.line); scene.remove(b.particle); }
+    beams.length = 0;
+  }
+
+  /* Winning line highlight */
+  let winLineMesh = null;
+  function showWinLine(a, b, c) {
+    const pts = [squarePosition(a), squarePosition(b), squarePosition(c)];
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const mat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, linewidth: 3 });
+    winLineMesh = new THREE.Line(geo, mat);
+    scene.add(winLineMesh);
+  }
+
+  /* ============================================================
+     VISUAL UPDATE per square, each frame, based on game state
+     ============================================================ */
+  const clock = new THREE.Clock();
+  let touchFlashes = {};
+
+  function animateTouch(i) {
+    touchFlashes[i] = performance.now();
+  }
+
+  function colorForPlayer(p) { return p === 'X' ? COLOR_X : COLOR_O; }
+
+  function updateVisuals() {
+    const t = clock.getElapsedTime();
+
+    for (let i = 0; i < 9; i++) {
+      const sq = squares[i];
+      const touched = game.touched[i];
+      const claimant = game.claimant[i];
+
+      if (game.over) {
+        const finalOwner = game.result[i];
+        const targetColor = finalOwner ? colorForPlayer(finalOwner) : COLOR_EMPTY;
+        sq.coreMat.color.lerp(targetColor, 0.12);
+        sq.coreMat.emissive.lerp(targetColor, 0.12);
+        sq.coreMat.emissiveIntensity = finalOwner ? 1.4 : 0.3;
+        sq.spriteMat.color.lerp(targetColor, 0.12);
+        sq.spriteMat.opacity += ((finalOwner ? 0.85 : 0.12) - sq.spriteMat.opacity) * 0.1;
+        sq.wireMat.opacity += (0 - sq.wireMat.opacity) * 0.15;
+        const scale = finalOwner ? 1.15 + Math.sin(t * 2 + i) * 0.03 : 0.85;
+        sq.group.scale.setScalar(sq.group.scale.x + (scale - sq.group.scale.x) * 0.12);
+      } else if (!touched) {
+        sq.coreMat.color.lerp(COLOR_EMPTY, 0.1);
+        sq.coreMat.emissive.lerp(COLOR_EMPTY, 0.1);
+        sq.coreMat.emissiveIntensity = 0.4 + Math.sin(t * 1.5 + i) * 0.1;
+        sq.spriteMat.opacity += (0.15 - sq.spriteMat.opacity) * 0.1;
+        sq.wireMat.opacity += (0 - sq.wireMat.opacity) * 0.1;
+        sq.group.scale.setScalar(sq.group.scale.x + (1 - sq.group.scale.x) * 0.1);
+      } else {
+        const prob = marginalProb1(game.state, i);
+        const ownerColor = colorForPlayer(claimant);
+        const isCertain = prob > 0.995 || prob < 0.005;
+
+        if (isCertain) {
+          sq.coreMat.color.lerp(ownerColor, 0.15);
+          sq.coreMat.emissive.lerp(ownerColor, 0.15);
+          sq.coreMat.emissiveIntensity = 1.1 + Math.sin(t * 2 + i) * 0.15;
+          sq.spriteMat.color.lerp(ownerColor, 0.15);
+          sq.spriteMat.opacity += (0.6 - sq.spriteMat.opacity) * 0.1;
+          sq.wireMat.opacity += (0 - sq.wireMat.opacity) * 0.1;
+          sq.group.scale.setScalar(sq.group.scale.x + (1.05 - sq.group.scale.x) * 0.12);
+        } else {
+          const pulse = 0.5 + 0.5 * Math.sin(t * 4 + i * 1.7);
+          const mix = ownerColor.clone().lerp(COLOR_SUPER, 0.5);
+          sq.coreMat.color.lerp(mix, 0.1);
+          sq.coreMat.emissive.lerp(mix, 0.1);
+          sq.coreMat.emissiveIntensity = 0.6 + pulse * 0.8;
+          sq.spriteMat.color.lerp(COLOR_SUPER, 0.1);
+          sq.spriteMat.opacity += ((0.35 + pulse * 0.35) - sq.spriteMat.opacity) * 0.15;
+          sq.wireMat.opacity += (0.5 - sq.wireMat.opacity) * 0.1;
+          sq.wire.rotation.y += 0.02;
+          sq.wire.rotation.x += 0.013;
+          sq.group.scale.setScalar(sq.group.scale.x + ((1 + pulse * 0.12) - sq.group.scale.x) * 0.15);
+        }
+      }
+
+      const flashStart = touchFlashes[i];
+      if (flashStart !== undefined) {
+        const elapsed = performance.now() - flashStart;
+        if (elapsed < 450) {
+          const k = 1 - elapsed / 450;
+          sq.group.scale.multiplyScalar(1 + k * 0.4);
+          sq.spriteMat.opacity = Math.min(1, sq.spriteMat.opacity + k * 0.5);
+        } else {
+          delete touchFlashes[i];
+        }
+      }
+    }
+
+    for (const b of beams) {
+      const elapsed = (performance.now() - b.born) / 1000;
+      const pulse = 0.55 + 0.35 * Math.sin(t * 3);
+      b.line.material.opacity = 0.55 + pulse * 0.2;
+      const travel = (elapsed * 0.6) % 1;
+      const p = b.curve.getPoint(travel);
+      b.particle.position.copy(p);
+      b.particle.scale.setScalar(0.3 + pulse * 0.15);
+    }
+
+    if (winLineMesh) {
+      winLineMesh.material.opacity = 0.6 + 0.4 * Math.sin(t * 5);
+    }
+  }
+
+  function runCollapseAnimation() {
+    for (let i = 0; i < 9; i++) touchFlashes[i] = performance.now();
+    if (game.winners.length === 1) {
+      for (const [a,b,c] of WIN_LINES) {
+        if (game.result[a] && game.result[a] === game.result[b] && game.result[b] === game.result[c] && game.result[a] === game.winners[0]) {
+          showWinLine(a, b, c);
+          break;
+        }
+      }
+    }
+    setTimeout(showEndOverlay, 900);
+  }
+
+  /* Pointer interaction: click-to-select square, drag-to-orbit */
+  const raycaster = new THREE.Raycaster();
+  const pointerNDC = new THREE.Vector2();
+  let dragStart = null, isDragging = false;
+
+  renderer.domElement.addEventListener('pointerdown', (e) => {
+    dragStart = { x: e.clientX, y: e.clientY, theta: camTheta, phi: camPhi };
+    isDragging = false;
+  });
+  renderer.domElement.addEventListener('pointermove', (e) => {
+    if (!dragStart) return;
+    const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) isDragging = true;
+    if (isDragging) {
+      camTheta = dragStart.theta - dx * 0.005;
+      camPhi = Math.min(2.4, Math.max(0.5, dragStart.phi - dy * 0.005));
+      updateCameraPosition();
+    }
+  });
+  renderer.domElement.addEventListener('pointerup', (e) => {
+    if (!isDragging) handleSquareClick(e);
+    dragStart = null; isDragging = false;
+  });
+  window.addEventListener('wheel', (e) => {
+    camDist = Math.min(16, Math.max(5, camDist + e.deltaY * 0.01));
+    updateCameraPosition();
+  }, { passive: true });
+
+  function handleSquareClick(e) {
+    pointerNDC.x = (e.clientX / window.innerWidth) * 2 - 1;
+    pointerNDC.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(pointerNDC, camera);
+    const hits = raycaster.intersectObjects(squares.map(s => s.core));
+    if (hits.length === 0) return;
+    const idx = hits[0].object.parent.userData.index;
+    onSquareSelected(idx);
+  }
+
+  /* ============================================================
+     UI WIRING
+     ============================================================ */
+  function updateTurnUI() {
+    const chip = document.getElementById('turn-chip');
+    const name = document.getElementById('turn-name');
+    chip.className = 'chip ' + game.currentPlayer;
+    name.textContent = game.currentPlayer;
+    document.getElementById('progress-text').textContent = `${game.movesMade} / 9 squares touched`;
+    updateHint();
+  }
+
+  function updateHint() {
+    const hint = document.getElementById('hint-text');
+    if (game.over) { hint.textContent = 'Game over. Start a new game to play again.'; return; }
+    if (game.mode === 'mark') hint.textContent = 'Click an empty square to mark it.';
+    else if (game.mode === 'superpose') hint.textContent = 'Click an empty square to superpose it (50/50).';
+    else if (game.mode === 'entangle') {
+      hint.textContent = game.entangleControl === null
+        ? 'Click an already-touched square to use as the control.'
+        : `Control = square ${game.entangleControl}. Now click an untouched square to entangle as the target.`;
+    }
+  }
+
+  function setMode(mode) {
+    if (game.over) return;
+    game.mode = mode;
+    game.entangleControl = null;
+    document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    updateHint();
+  }
+
+  document.getElementById('btn-mark').addEventListener('click', () => setMode('mark'));
+  document.getElementById('btn-superpose').addEventListener('click', () => setMode('superpose'));
+  document.getElementById('btn-entangle').addEventListener('click', () => setMode('entangle'));
+  document.getElementById('collapse-btn').addEventListener('click', () => {
+    if (game.over || game.movesMade === 0) return;
+    collapseBoard();
+  });
+  document.getElementById('restart-btn').addEventListener('click', restartGame);
+  document.getElementById('overlay-restart').addEventListener('click', restartGame);
+
+  function onSquareSelected(i) {
+    if (game.over) return;
+    if (game.mode === 'mark') {
+      if (game.touched[i]) return;
+      doMark(i);
+    } else if (game.mode === 'superpose') {
+      if (game.touched[i]) return;
+      doSuperpose(i);
+    } else if (game.mode === 'entangle') {
+      if (game.entangleControl === null) {
+        if (!game.touched[i]) return;
+        game.entangleControl = i;
+        updateHint();
+      } else {
+        if (game.touched[i] || i === game.entangleControl) return;
+        const control = game.entangleControl;
+        doEntangle(control, i);
+        addBeam(control, i);
+        game.entangleControl = null;
+        updateHint();
+      }
+    }
+  }
+
+  function showEndOverlay() {
+    const overlay = document.getElementById('overlay-message');
+    const title = document.getElementById('overlay-title');
+    const sub = document.getElementById('overlay-sub');
+    if (game.winners.length === 1) {
+      title.textContent = `${game.winners[0]} wins`;
+      sub.textContent = 'the board has collapsed into a completed line';
+    } else if (game.winners.length > 1) {
+      title.textContent = 'quantum paradox';
+      sub.textContent = `both ${game.winners.join(' and ')} completed a line -- tie`;
+    } else {
+      title.textContent = 'draw';
+      sub.textContent = 'no completed line after collapse';
+    }
+    overlay.style.display = 'flex';
+  }
+
+  function restartGame() {
+    document.getElementById('overlay-message').style.display = 'none';
+    document.getElementById('log-list').innerHTML = '';
+    clearBeams();
+    if (winLineMesh) { scene.remove(winLineMesh); winLineMesh = null; }
+    touchFlashes = {};
+    newGame();
+    setMode('mark');
+    updateTurnUI();
+  }
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  function animate() {
+    requestAnimationFrame(animate);
+    updateVisuals();
+    renderer.render(scene, camera);
+  }
+  updateTurnUI();
+  animate();
+})();
+</script>
+</body>
+</html>
